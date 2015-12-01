@@ -1,7 +1,9 @@
 from nose.tools import assert_equal
+import os
 
 from set_one import hex_to_base64, fixed_xor, break_single_byte_xor, challenge_four,\
-    repeating_key_xor, hamming_distance, bit_sum, repeating_xor_keysize, break_repeating_key_xor
+    repeating_key_xor, hamming_distance, bit_sum, repeating_xor_keysize, break_repeating_key_xor,\
+    DATA_DIR
 
 
 def test_challenge_one():
@@ -48,4 +50,6 @@ def test_challenge_six():
     assert_equal(hamming_distance('this is a test', 'wokka wokka!!!'), 37)
     assert_equal(repeating_xor_keysize(), 29)
     decrypted = break_repeating_key_xor()
-    print(decrypted.decode('ascii'))
+    with open(os.path.join(DATA_DIR, '6_sol.txt'), 'r') as buff:
+        expected = buff.read().strip()
+    assert_equal(decrypted.decode('ascii'), expected)

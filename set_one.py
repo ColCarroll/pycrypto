@@ -71,8 +71,11 @@ def hamming_distance(string_one, string_two):
     return byte_distance(bytes(string_one, 'ascii'), bytes(string_two, 'ascii'))
 
 
-def block(iterable, size):
-    return [iterable[j:j+size] for j in range(0, len(iterable), size)]
+def block_bytes(iterable, size):
+    blocks = [iterable[j:j + size] for j in range(0, len(iterable), size)]
+    missing = size - len(blocks[-1])
+    blocks[-1] += bytes(' ' * missing, 'ascii')
+    return blocks
 
 
 def _six_data():
@@ -86,7 +89,7 @@ def repeating_xor_keysize(data_bytes=_six_data(), n_blocks=4):
     for size in range(2, 40):
         distance = 0
         tot = 0
-        for a, b in itertools.combinations(block(data_bytes, size)[:n_blocks], 2):
+        for a, b in itertools.combinations(block_bytes(data_bytes, size)[:n_blocks], 2):
             distance += byte_distance(a, b) / size
             tot += 1
         distance /= tot
@@ -99,11 +102,6 @@ def repeating_xor_keysize(data_bytes=_six_data(), n_blocks=4):
 def break_repeating_key_xor(data_bytes=_six_data()):
     scorer = _get_english_scorer()
     key_size = repeating_xor_keysize(data_bytes)
-    transposed = map(bytes, zip(*block(data_bytes, key_size)))
-    decrypted = []
-    for encrypted in transposed:
-        broken, _ = break_single_byte_xor(encrypted, scorer)
-        decrypted.append(broken)
-    for snippet in zip(*decrypted):
-        print(bytes(snippet).decode('ascii'))
-    return [bytes(j).decode('ascii') for j in zip(*decrypted)]
+    transposed = map(bytes, zip(*block_bytes(data_bytes, key_size)))
+    decrypted = [break_single_byte_xor(encrypted, scorer)[0] for encrypted in transposed]
+    return b''.join(bytes(j) for j in zip(*decrypted))
