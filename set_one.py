@@ -3,6 +3,7 @@ import binascii
 from collections import Counter
 import itertools
 import os
+from Crypto.Cipher import AES
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 CORPUS = os.path.join(DATA_DIR, 'idleness.txt')
@@ -74,17 +75,21 @@ def hamming_distance(string_one, string_two):
 def block_bytes(iterable, size):
     blocks = [iterable[j:j + size] for j in range(0, len(iterable), size)]
     missing = size - len(blocks[-1])
-    blocks[-1] += bytes(' ' * missing, 'ascii')
+    blocks[-1] += b'\x00' * missing
     return blocks
 
 
-def _six_data():
-    with open(os.path.join(DATA_DIR, '6.txt'), 'rb') as buff:
+def _b64_file(filename):
+    with open(filename, 'rb') as buff:
         data = base64.b64decode(buff.read().strip())
     return data
 
 
-def repeating_xor_keysize(data_bytes=_six_data(), n_blocks=4):
+def _data(problem_number):
+    return _b64_file(os.path.join(DATA_DIR, '{}.txt'.format(problem_number)))
+
+
+def repeating_xor_keysize(data_bytes=_data(6), n_blocks=4):
     best_key, best_distance = 0, 8
     for size in range(2, 40):
         distance = 0
@@ -99,9 +104,32 @@ def repeating_xor_keysize(data_bytes=_six_data(), n_blocks=4):
     return best_key
 
 
-def break_repeating_key_xor(data_bytes=_six_data()):
+def break_repeating_key_xor(data_bytes=_data(6)):
     scorer = _get_english_scorer()
     key_size = repeating_xor_keysize(data_bytes)
     transposed = map(bytes, zip(*block_bytes(data_bytes, key_size)))
     decrypted = [break_single_byte_xor(encrypted, scorer)[0] for encrypted in transposed]
     return b''.join(bytes(j) for j in zip(*decrypted))
+
+
+def decrypt_aes_ecb(ciphertext=_data(7), key='YELLOW SUBMARINE'):
+    return AES.new(key, AES.MODE_ECB).decrypt(ciphertext)
+
+
+def _eight_data():
+    data = []
+    with open(os.path.join(DATA_DIR, '8.txt'), 'r') as buff:
+        for row in buff:
+            data.append(binascii.unhexlify(row.strip()))
+    return data
+
+
+def detect_aes_ecb(data_bytes=_eight_data()):
+    min_count = float('inf')
+    aes_row = ''
+    for row in data_bytes:
+        byte_count = len(Counter(row).keys())
+        if byte_count < min_count:
+            min_count = byte_count
+            aes_row = binascii.hexlify(row)
+    return aes_row
